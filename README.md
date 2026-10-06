@@ -3,9 +3,6 @@
 Rate limiting algorithms implemented from scratch in a .NET 10 Minimal API, with a React frontend to try
 them out and Aspire to run both.
 
-> **Status: frame only.** Every limiter is a stub that throws `NotImplementedException`, so each endpoint
-> returns `500` until its algorithm is implemented.
-
 ## Run
 
 ```bash
