@@ -1,0 +1,28 @@
+@Server_HostAddress = http://localhost:5302
+
+### Token bucket
+GET {{Server_HostAddress}}/api/token-bucket
+Accept: application/json
+X-Client-Id: alice
+
+### Leaking bucket
+GET {{Server_HostAddress}}/api/leaking-bucket
+Accept: application/json
+X-Client-Id: alice
+
+### Fixed window counter
+GET {{Server_HostAddress}}/api/fixed-window-counter
+Accept: application/json
+X-Client-Id: alice
+
+### Sliding window log
+GET {{Server_HostAddress}}/api/sliding-window-log
+Accept: application/json
+X-Client-Id: alice
+
+### Sliding window counter
+GET {{Server_HostAddress}}/api/sliding-window-counter
+Accept: application/json
+X-Client-Id: alice
+
+###

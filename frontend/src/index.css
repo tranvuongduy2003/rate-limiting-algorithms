@@ -1,0 +1,61 @@
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --border: #dfe3e8;
+  --text: #1c2128;
+  --muted: #5b6573;
+  --accent: #3b5bdb;
+  --on-accent: #ffffff;
+  --chip-bg: #eef1f4;
+  --ok: #1f883d;
+  --limited: #d1242f;
+  --error: #8250df;
+
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--bg);
+  color-scheme: light dark;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1216;
+    --surface: #171b21;
+    --border: #2b313a;
+    --text: #e6e9ee;
+    --muted: #9aa4b1;
+    --accent: #7c97ff;
+    --on-accent: #0f1216;
+    --chip-bg: #232933;
+    --ok: #3fb950;
+    --limited: #f85149;
+    --error: #a371f7;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
+}
+
+code {
+  font-family: ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', monospace;
+  font-size: 0.85em;
+  background: var(--chip-bg);
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+}
+
+button {
+  font: inherit;
+}
