@@ -1,3 +1,4 @@
+using RateLimiting.Server.Common.RateLimiting;
 using RateLimiting.Server.Features.FixedWindowCounter;
 using RateLimiting.Server.Features.LeakingBucket;
 using RateLimiting.Server.Features.SlidingWindowCounter;
@@ -7,9 +8,11 @@ using RateLimiting.Server.Features.TokenBucket;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
+builder.AddRedisClient("redis");
 
 builder.Services.AddProblemDetails();
 builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton<RedisRateLimitStore>();
 
 builder.Services
     .AddTokenBucket(builder.Configuration)

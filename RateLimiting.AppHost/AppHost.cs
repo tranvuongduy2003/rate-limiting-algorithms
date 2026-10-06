@@ -1,6 +1,10 @@
 var builder = DistributedApplication.CreateBuilder(args);
 
+var redis = builder.AddRedis("redis");
+
 var server = builder.AddProject<Projects.RateLimiting_Server>("server")
+    .WithReference(redis)
+    .WaitFor(redis)
     .WithHttpHealthCheck("/health")
     .WithExternalHttpEndpoints();
 
