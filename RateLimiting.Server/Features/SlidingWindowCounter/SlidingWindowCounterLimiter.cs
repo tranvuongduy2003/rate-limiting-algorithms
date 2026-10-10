@@ -29,11 +29,12 @@ public sealed class SlidingWindowCounterLimiter(IOptions<SlidingWindowCounterOpt
             if (estimatedCount + 1 <= _options.Limit)
             {
                 counter.CurrentCount++;
-                return ValueTask.FromResult(RateLimitDecision.Allow());
+                var remaining = (int)Math.Floor(_options.Limit - estimatedCount - 1);
+                return ValueTask.FromResult(RateLimitDecision.Allow(_options.Limit, remaining));
             }
 
             var retryAfter = CalculateRetryAfter(counter, remainingWindowTicks);
-            return ValueTask.FromResult(RateLimitDecision.Reject(retryAfter));
+            return ValueTask.FromResult(RateLimitDecision.Reject(_options.Limit, retryAfter));
         }
     }
 

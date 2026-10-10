@@ -1,6 +1,7 @@
 using RateLimiting.Server.Common.RateLimiting;
 using RateLimiting.Server.Features.FixedWindowCounter;
 using RateLimiting.Server.Features.LeakingBucket;
+using RateLimiting.Server.Features.RateLimitingRules;
 using RateLimiting.Server.Features.SlidingWindowCounter;
 using RateLimiting.Server.Features.SlidingWindowLog;
 using RateLimiting.Server.Features.TokenBucket;
@@ -17,6 +18,7 @@ builder.Services.AddSingleton<RedisRateLimitStore>();
 builder.Services
     .AddTokenBucket(builder.Configuration)
     .AddLeakingBucket(builder.Configuration)
+    .AddRateLimitingRules(builder.Configuration)
     .AddFixedWindowCounter(builder.Configuration)
     .AddSlidingWindowLog(builder.Configuration)
     .AddSlidingWindowCounter(builder.Configuration);
@@ -35,6 +37,7 @@ if (app.Environment.IsDevelopment())
 app.MapGroup("/api")
     .MapTokenBucket()
     .MapLeakingBucket()
+    .MapRateLimitingRules()
     .MapFixedWindowCounter()
     .MapSlidingWindowLog()
     .MapSlidingWindowCounter();

@@ -20,6 +20,7 @@ public sealed class LeakingBucketLimiter(IOptions<LeakingBucketOptions> options,
             _timeProvider.GetTimestamp());
 
         TimeSpan queueDelay;
+        int remaining;
         lock (bucket)
         {
             var now = _timeProvider.GetTimestamp();
@@ -31,11 +32,12 @@ public sealed class LeakingBucketLimiter(IOptions<LeakingBucketOptions> options,
             if (bucket.Level + WaterPerRequest > _options.Capacity)
             {
                 var retryAfter = TimeSpan.FromSeconds((bucket.Level + WaterPerRequest - _options.Capacity) / _options.LeakRatePerSecond);
-                return RateLimitDecision.Reject(retryAfter);
+                return RateLimitDecision.Reject(_options.Capacity, retryAfter);
             }
 
             queueDelay = TimeSpan.FromSeconds(bucket.Level / _options.LeakRatePerSecond);
             bucket.Level += WaterPerRequest;
+            remaining = Math.Max(0, _options.Capacity - (int)Math.Ceiling(bucket.Level));
         }
 
         if (queueDelay > TimeSpan.Zero)
@@ -43,7 +45,7 @@ public sealed class LeakingBucketLimiter(IOptions<LeakingBucketOptions> options,
             await Task.Delay(queueDelay, _timeProvider, cancellationToken);
         }
 
-        return RateLimitDecision.Allow();
+        return RateLimitDecision.Allow(_options.Capacity, remaining);
     }
 
     private static LeakingBucketOptions Validate(LeakingBucketOptions options)

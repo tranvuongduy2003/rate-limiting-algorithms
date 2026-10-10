@@ -34,7 +34,8 @@ public sealed class RedisLeakingBucketLimiter(
 
         redis.call('HSET', KEYS[1], 'level', level, 'last_leak_ms', now_ms)
         redis.call('PEXPIRE', KEYS[1], math.max(1000, math.ceil((capacity / leak_per_second) * 1000)))
-        return { allowed, wait_ms }
+        local remaining = math.max(0, math.floor(capacity - level))
+        return { allowed, wait_ms, remaining }
         """;
 
     private readonly LeakingBucketOptions _options = Validate(options.Value);
@@ -53,13 +54,13 @@ public sealed class RedisLeakingBucketLimiter(
 
         if (result is null)
         {
-            return RateLimitDecision.Allow();
+            return RateLimitDecision.Allow(_options.Capacity, _options.Capacity);
         }
 
         var wait = TimeSpan.FromMilliseconds((long)result[1]);
         if ((long)result[0] == 0)
         {
-            return RateLimitDecision.Reject(wait);
+            return RateLimitDecision.Reject(_options.Capacity, wait);
         }
 
         if (wait > TimeSpan.Zero)
@@ -67,7 +68,7 @@ public sealed class RedisLeakingBucketLimiter(
             await Task.Delay(wait, _timeProvider, cancellationToken);
         }
 
-        return RateLimitDecision.Allow();
+        return RateLimitDecision.Allow(_options.Capacity, (int)(long)result[2]);
     }
 
     private static LeakingBucketOptions Validate(LeakingBucketOptions options)

@@ -57,7 +57,8 @@ public sealed class RedisSlidingWindowCounterLimiter(
             'previous', previous_count,
             'current', current_count)
         redis.call('PEXPIRE', KEYS[1], window_ms * 2)
-        return { allowed, retry_after_ms }
+        local remaining = math.max(0, math.floor(request_limit - estimated_count - allowed))
+        return { allowed, retry_after_ms, remaining }
         """;
 
     private readonly SlidingWindowCounterOptions _options = Validate(options.Value);
@@ -73,9 +74,14 @@ public sealed class RedisSlidingWindowCounterLimiter(
             [(long)Math.Ceiling(_options.Window.TotalMilliseconds), _options.Limit],
             cancellationToken);
 
-        return result is null || (long)result[0] == 1
-            ? RateLimitDecision.Allow()
-            : RateLimitDecision.Reject(TimeSpan.FromMilliseconds((long)result[1]));
+        if (result is null)
+        {
+            return RateLimitDecision.Allow(_options.Limit, _options.Limit);
+        }
+
+        return (long)result[0] == 1
+            ? RateLimitDecision.Allow(_options.Limit, (int)(long)result[2])
+            : RateLimitDecision.Reject(_options.Limit, TimeSpan.FromMilliseconds((long)result[1]));
     }
 
     private static SlidingWindowCounterOptions Validate(SlidingWindowCounterOptions options)

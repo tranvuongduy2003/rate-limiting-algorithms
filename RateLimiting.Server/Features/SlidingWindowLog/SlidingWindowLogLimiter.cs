@@ -24,34 +24,16 @@ public sealed class SlidingWindowLogLimiter(IOptions<SlidingWindowLogOptions> op
                 requestLog.Dequeue();
             }
 
-            requestLog.Enqueue(now);
-
-            if (requestLog.Count <= _options.Limit)
+            if (requestLog.Count < _options.Limit)
             {
-                return ValueTask.FromResult(RateLimitDecision.Allow());
+                requestLog.Enqueue(now);
+                return ValueTask.FromResult(RateLimitDecision.Allow(_options.Limit, _options.Limit - requestLog.Count));
             }
 
-            var timestampsToExpire = requestLog.Count - _options.Limit + 1;
-            var retryTimestamp = GetTimestampAt(requestLog, timestampsToExpire - 1);
+            var retryTimestamp = requestLog.Peek();
             var retryAfter = retryTimestamp + _options.Window - now;
-            return ValueTask.FromResult(RateLimitDecision.Reject(retryAfter));
+            return ValueTask.FromResult(RateLimitDecision.Reject(_options.Limit, retryAfter));
         }
-    }
-
-    private static DateTimeOffset GetTimestampAt(Queue<DateTimeOffset> requestLog, int index)
-    {
-        var currentIndex = 0;
-        foreach (var timestamp in requestLog)
-        {
-            if (currentIndex == index)
-            {
-                return timestamp;
-            }
-
-            currentIndex++;
-        }
-
-        throw new InvalidOperationException("The request log did not contain the expected timestamp.");
     }
 
     private static SlidingWindowLogOptions Validate(SlidingWindowLogOptions options)

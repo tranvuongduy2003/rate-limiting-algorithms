@@ -7,6 +7,8 @@ interface RequestEntry {
   outcome: Outcome;
   status?: number;
   latencyMs?: number;
+  limit?: number;
+  remaining?: number;
   retryAfterSeconds?: number;
 }
 
@@ -85,7 +87,10 @@ export function AlgorithmCard({ title, endpoint, children }: AlgorithmCardProps)
               </span>
               <span>{entry.latencyMs === undefined ? '' : `${Math.round(entry.latencyMs)} ms`}</span>
               <span className="note">
-                {entry.retryAfterSeconds === undefined ? '' : `Retry-After ${entry.retryAfterSeconds}s`}
+                {entry.remaining === undefined || entry.limit === undefined
+                  ? ''
+                  : `${entry.remaining}/${entry.limit} left`}
+                {entry.retryAfterSeconds === undefined ? '' : ` · Retry in ${entry.retryAfterSeconds}s`}
               </span>
             </li>
           ))}

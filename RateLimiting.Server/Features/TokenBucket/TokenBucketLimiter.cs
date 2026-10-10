@@ -30,11 +30,11 @@ public sealed class TokenBucketLimiter(IOptions<TokenBucketOptions> options, Tim
             if (bucket.Tokens >= TokensPerRequest)
             {
                 bucket.Tokens -= TokensPerRequest;
-                return ValueTask.FromResult(RateLimitDecision.Allow());
+                return ValueTask.FromResult(RateLimitDecision.Allow(_options.Capacity, (int)Math.Floor(bucket.Tokens)));
             }
 
             var retryAfter = TimeSpan.FromSeconds((TokensPerRequest - bucket.Tokens) / _options.RefillRatePerSecond);
-            return ValueTask.FromResult(RateLimitDecision.Reject(retryAfter));
+            return ValueTask.FromResult(RateLimitDecision.Reject(_options.Capacity, retryAfter));
         }
     }
 

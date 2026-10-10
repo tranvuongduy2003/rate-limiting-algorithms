@@ -18,19 +18,18 @@ public sealed class RedisSlidingWindowLogLimiter(
 
         redis.call('ZREMRANGEBYSCORE', KEYS[1], '-inf', window_start_ms)
         local count = redis.call('ZCARD', KEYS[1])
-        local member = tostring(now_ms) .. ':' .. tostring(count + 1)
-        redis.call('ZADD', KEYS[1], now_ms, member)
-        count = count + 1
-        redis.call('PEXPIRE', KEYS[1], window_ms)
 
-        if count <= request_limit then
-            return { 1, 0 }
+        if count < request_limit then
+            local member = tostring(now_ms) .. ':' .. tostring(count + 1)
+            redis.call('ZADD', KEYS[1], now_ms, member)
+            count = count + 1
+            redis.call('PEXPIRE', KEYS[1], window_ms)
+            return { 1, 0, request_limit - count }
         end
 
-        local retry_index = count - request_limit
-        local retry_entry = redis.call('ZRANGE', KEYS[1], retry_index, retry_index, 'WITHSCORES')
+        local retry_entry = redis.call('ZRANGE', KEYS[1], 0, 0, 'WITHSCORES')
         local retry_after_ms = math.max(1, tonumber(retry_entry[2]) + window_ms - now_ms)
-        return { 0, retry_after_ms }
+        return { 0, retry_after_ms, 0 }
         """;
 
     private readonly SlidingWindowLogOptions _options = Validate(options.Value);
@@ -46,9 +45,14 @@ public sealed class RedisSlidingWindowLogLimiter(
             [(long)Math.Ceiling(_options.Window.TotalMilliseconds), _options.Limit],
             cancellationToken);
 
-        return result is null || (long)result[0] == 1
-            ? RateLimitDecision.Allow()
-            : RateLimitDecision.Reject(TimeSpan.FromMilliseconds((long)result[1]));
+        if (result is null)
+        {
+            return RateLimitDecision.Allow(_options.Limit, _options.Limit);
+        }
+
+        return (long)result[0] == 1
+            ? RateLimitDecision.Allow(_options.Limit, (int)(long)result[2])
+            : RateLimitDecision.Reject(_options.Limit, TimeSpan.FromMilliseconds((long)result[1]));
     }
 
     private static SlidingWindowLogOptions Validate(SlidingWindowLogOptions options)

@@ -49,6 +49,19 @@ frontend/src/
 
 Requests are limited per client: the `X-Client-Id` header if present, otherwise the remote IP.
 
+Every limited endpoint returns `X-RateLimit-Limit` and `X-RateLimit-Remaining`. Rejected requests also return
+`429 Too Many Requests`, `Retry-After`, and `X-RateLimit-Retry-After`.
+
+## Configured rules
+
+The policies under `RateLimiting:Rules` in `RateLimiting.Server/appsettings.json` are exposed through:
+
+- `GET /api/rate-limiting-rules` to read the active policies.
+- `POST /api/rate-limiting-rules/evaluate` to match and consume a policy allowance for a client.
+
+The frontend rule cards call these endpoints directly and show the response status, remaining allowance, and retry
+delay. Selecting **New client** starts with a new client identity and a fresh allowance.
+
 ## Implementing an algorithm
 
 Fill in `AcquireAsync` in `Features/<Algorithm>/<Algorithm>Limiter.cs` and return `RateLimitDecision.Allow()`

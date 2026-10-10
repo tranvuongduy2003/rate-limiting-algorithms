@@ -32,7 +32,8 @@ public sealed class RedisTokenBucketLimiter(
 
         redis.call('HSET', KEYS[1], 'tokens', tokens, 'last_refill_ms', now_ms)
         redis.call('PEXPIRE', KEYS[1], math.max(1000, math.ceil((capacity / refill_per_second) * 1000)))
-        return { allowed, retry_after_ms }
+        local remaining = math.max(0, math.floor(tokens))
+        return { allowed, retry_after_ms, remaining }
         """;
 
     private readonly TokenBucketOptions _options = Validate(options.Value);
@@ -48,9 +49,14 @@ public sealed class RedisTokenBucketLimiter(
             [_options.Capacity, _options.RefillRatePerSecond],
             cancellationToken);
 
-        return result is null || (long)result[0] == 1
-            ? RateLimitDecision.Allow()
-            : RateLimitDecision.Reject(TimeSpan.FromMilliseconds((long)result[1]));
+        if (result is null)
+        {
+            return RateLimitDecision.Allow(_options.Capacity, _options.Capacity);
+        }
+
+        return (long)result[0] == 1
+            ? RateLimitDecision.Allow(_options.Capacity, (int)(long)result[2])
+            : RateLimitDecision.Reject(_options.Capacity, TimeSpan.FromMilliseconds((long)result[1]));
     }
 
     private static TokenBucketOptions Validate(TokenBucketOptions options)

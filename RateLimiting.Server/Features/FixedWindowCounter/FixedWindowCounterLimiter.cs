@@ -28,12 +28,12 @@ public sealed class FixedWindowCounterLimiter(IOptions<FixedWindowCounterOptions
             if (counter.Count < _options.Limit)
             {
                 counter.Count++;
-                return ValueTask.FromResult(RateLimitDecision.Allow());
+                return ValueTask.FromResult(RateLimitDecision.Allow(_options.Limit, _options.Limit - counter.Count));
             }
 
             var elapsedWindowTicks = now.UtcTicks % _options.Window.Ticks;
             var retryAfter = TimeSpan.FromTicks(_options.Window.Ticks - elapsedWindowTicks);
-            return ValueTask.FromResult(RateLimitDecision.Reject(retryAfter));
+            return ValueTask.FromResult(RateLimitDecision.Reject(_options.Limit, retryAfter));
         }
     }
 

@@ -26,12 +26,14 @@ public sealed class RedisFixedWindowCounterLimiter(
         local allowed = 0
         if count < request_limit then
             redis.call('HINCRBY', KEYS[1], 'count', 1)
+            count = count + 1
             allowed = 1
         end
 
         local retry_after_ms = window_ms - (now_ms % window_ms)
         redis.call('PEXPIRE', KEYS[1], retry_after_ms)
-        return { allowed, retry_after_ms }
+        local remaining = math.max(0, request_limit - count)
+        return { allowed, retry_after_ms, remaining }
         """;
 
     private readonly FixedWindowCounterOptions _options = Validate(options.Value);
@@ -47,9 +49,14 @@ public sealed class RedisFixedWindowCounterLimiter(
             [(long)Math.Ceiling(_options.Window.TotalMilliseconds), _options.Limit],
             cancellationToken);
 
-        return result is null || (long)result[0] == 1
-            ? RateLimitDecision.Allow()
-            : RateLimitDecision.Reject(TimeSpan.FromMilliseconds((long)result[1]));
+        if (result is null)
+        {
+            return RateLimitDecision.Allow(_options.Limit, _options.Limit);
+        }
+
+        return (long)result[0] == 1
+            ? RateLimitDecision.Allow(_options.Limit, (int)(long)result[2])
+            : RateLimitDecision.Reject(_options.Limit, TimeSpan.FromMilliseconds((long)result[1]));
     }
 
     private static FixedWindowCounterOptions Validate(FixedWindowCounterOptions options)

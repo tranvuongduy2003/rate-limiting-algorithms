@@ -2,6 +2,7 @@ import { FixedWindowCounter } from './features/fixed-window-counter/FixedWindowC
 import { RedisFixedWindowCounter } from './features/fixed-window-counter/RedisFixedWindowCounter';
 import { LeakingBucket } from './features/leaking-bucket/LeakingBucket';
 import { RedisLeakingBucket } from './features/leaking-bucket/RedisLeakingBucket';
+import { RateLimitingRules } from './features/rate-limiting-rules/RateLimitingRules';
 import { RedisSlidingWindowCounter } from './features/sliding-window-counter/RedisSlidingWindowCounter';
 import { SlidingWindowCounter } from './features/sliding-window-counter/SlidingWindowCounter';
 import { RedisSlidingWindowLog } from './features/sliding-window-log/RedisSlidingWindowLog';
@@ -33,6 +34,8 @@ function App() {
         <SlidingWindowCounter />
         <RedisSlidingWindowCounter />
       </main>
+
+      <RateLimitingRules />
     </div>
   );
 }
