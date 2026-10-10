@@ -26,3 +26,32 @@ Accept: application/json
 X-Client-Id: alice
 
 ###
+
+### Rules loaded by the refresh worker from rate-limit-rules.json
+GET {{Server_HostAddress}}/api/rate-limiting-rules
+Accept: application/json
+
+### Protected API server route (middleware rule: messaging/message_type/marketing)
+POST {{Server_HostAddress}}/api/messages/marketing
+Content-Type: application/json
+X-Client-Id: alice
+
+{
+  "recipient": "customer-42",
+  "message": "Sale starts today"
+}
+
+### Protected API server route (middleware rule: auth/auth_type/login)
+POST {{Server_HostAddress}}/api/auth/login
+Content-Type: application/json
+X-Client-Id: alice
+
+{
+  "username": "alice"
+}
+
+### Redis rejected-request stream status
+GET {{Server_HostAddress}}/api/rate-limiting-rules/queue
+Accept: application/json
+
+###

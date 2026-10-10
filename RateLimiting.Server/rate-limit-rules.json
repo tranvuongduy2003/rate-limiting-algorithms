@@ -1,0 +1,18 @@
+{
+  "policies": [
+    {
+      "domain": "messaging",
+      "descriptorKey": "message_type",
+      "descriptorValue": "marketing",
+      "unit": "day",
+      "requestsPerUnit": 5
+    },
+    {
+      "domain": "auth",
+      "descriptorKey": "auth_type",
+      "descriptorValue": "login",
+      "unit": "minute",
+      "requestsPerUnit": 5
+    }
+  ]
+}

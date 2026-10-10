@@ -1,5 +1,3 @@
-using RateLimiting.Server.Common.RateLimiting;
-
 namespace RateLimiting.Server.Features.RateLimitingRules;
 
 public static class RateLimitingRulesEndpoint
@@ -8,10 +6,18 @@ public static class RateLimitingRulesEndpoint
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        services.Configure<RateLimitingRulesOptions>(configuration.GetSection(RateLimitingRulesOptions.SectionName));
+        services.Configure<RateLimitingRulesOptions>(
+            configuration.GetSection(RateLimitingRulesOptions.SectionName));
+        services.AddSingleton<FileRateLimitingRuleStore>();
+        services.AddSingleton<RateLimitingRuleCache>();
         services.AddSingleton<ConfiguredRateLimiter>();
+        services.AddSingleton<RejectedRequestQueue>();
+        services.AddHostedService<RateLimitingRuleRefreshWorker>();
         return services;
     }
+
+    public static IApplicationBuilder UseRateLimitingRules(this IApplicationBuilder app) =>
+        app.UseMiddleware<RateLimitingRuleMiddleware>();
 
     public static IEndpointRouteBuilder MapRateLimitingRules(this IEndpointRouteBuilder endpoints)
     {
@@ -20,40 +26,49 @@ public static class RateLimitingRulesEndpoint
             .WithName("GetRateLimitingRules");
 
         endpoints.MapPost("/rate-limiting-rules/evaluate", Evaluate)
+            .RequireConfiguredRateLimitFromBody()
             .WithName("EvaluateRateLimitingRule");
+
+        endpoints.MapGet("/rate-limiting-rules/queue", async (
+                RejectedRequestQueue queue,
+                CancellationToken cancellationToken) =>
+            {
+                var length = await queue.GetLengthAsync(cancellationToken);
+                return TypedResults.Ok(queue.CreateStatus(length));
+            })
+            .WithName("GetRejectedRequestQueueStatus");
+
+        // These handlers stand in for downstream API servers. The middleware runs first,
+        // matches their metadata to the cached disk rule, and only forwards allowed calls.
+        endpoints.MapPost("/messages/marketing", (TimeProvider timeProvider) =>
+                TypedResults.Ok(new RateLimitingRuleResponse(
+                    "messaging",
+                    "message_type",
+                    "marketing",
+                    timeProvider.GetUtcNow())))
+            .RequireConfiguredRateLimit("messaging", "message_type", "marketing")
+            .WithName("SendMarketingMessage");
+
+        endpoints.MapPost("/auth/login", (TimeProvider timeProvider) =>
+                TypedResults.Ok(new RateLimitingRuleResponse(
+                    "auth",
+                    "auth_type",
+                    "login",
+                    timeProvider.GetUtcNow())))
+            .RequireConfiguredRateLimit("auth", "auth_type", "login")
+            .WithName("AttemptLogin");
 
         return endpoints;
     }
 
     private static IResult Evaluate(
         RateLimitingRuleRequest request,
-        HttpContext httpContext,
-        ConfiguredRateLimiter limiter,
         TimeProvider timeProvider)
     {
-        var evaluation = limiter.Acquire(request, RateLimitClientKey.Resolve(httpContext));
-        if (evaluation is null)
-        {
-            return Results.Problem(
-                statusCode: StatusCodes.Status404NotFound,
-                title: "Rate limiting rule not found",
-                detail: "No configured rule matches the supplied domain and descriptor.");
-        }
-
-        RateLimitResponseHeaders.Apply(httpContext.Response, evaluation.Decision);
-
-        if (!evaluation.Decision.IsAllowed)
-        {
-            return Results.Problem(
-                statusCode: StatusCodes.Status429TooManyRequests,
-                title: "Too many requests",
-                detail: "The configured rate limit has been exceeded.");
-        }
-
         return Results.Ok(new RateLimitingRuleResponse(
-            evaluation.Rule.Domain,
-            evaluation.Rule.DescriptorKey,
-            evaluation.Rule.DescriptorValue,
+            request.Domain,
+            request.DescriptorKey,
+            request.DescriptorValue,
             timeProvider.GetUtcNow()));
     }
 }

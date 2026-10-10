@@ -4,16 +4,12 @@ public sealed class RateLimitingRulesOptions
 {
     public const string SectionName = "RateLimiting:Rules";
 
-    public List<RateLimitingRuleOptions> Policies { get; set; } = [];
-}
-
-public sealed class RateLimitingRuleOptions
-{
-    public string Domain { get; set; } = string.Empty;
-    public string DescriptorKey { get; set; } = string.Empty;
-    public string DescriptorValue { get; set; } = string.Empty;
-    public RateLimitUnit Unit { get; set; }
-    public int RequestsPerUnit { get; set; }
+    public string FilePath { get; set; } = "rate-limit-rules.json";
+    public TimeSpan RefreshInterval { get; set; } = TimeSpan.FromSeconds(5);
+    public RejectedRequestBehavior RejectedRequestBehavior { get; set; } = RejectedRequestBehavior.Drop;
+    public string QueueKey { get; set; } = "rate-limit:rejected-requests";
+    public int QueueMaxLength { get; set; } = 10_000;
+    public int QueuedBodyMaxBytes { get; set; } = 64 * 1024;
 }
 
 public enum RateLimitUnit
@@ -22,4 +18,10 @@ public enum RateLimitUnit
     Minute,
     Hour,
     Day
+}
+
+public enum RejectedRequestBehavior
+{
+    Drop,
+    Queue
 }

@@ -28,6 +28,7 @@ builder.Services.AddOpenApi();
 var app = builder.Build();
 
 app.UseExceptionHandler();
+app.UseRateLimitingRules();
 
 if (app.Environment.IsDevelopment())
 {

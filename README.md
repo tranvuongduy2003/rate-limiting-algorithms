@@ -54,13 +54,44 @@ Every limited endpoint returns `X-RateLimit-Limit` and `X-RateLimit-Remaining`. 
 
 ## Configured rules
 
-The policies under `RateLimiting:Rules` in `RateLimiting.Server/appsettings.json` are exposed through:
+Configured rate limiting now follows the complete distributed request path:
+
+1. `RateLimiting.Server/rate-limit-rules.json` is the disk rule store.
+2. `RateLimitingRuleRefreshWorker` loads it before the server accepts traffic, then refreshes an atomically replaced
+   in-memory snapshot on the configured interval. A bad refresh leaves the last valid snapshot active.
+3. `RateLimitingRuleMiddleware` matches protected endpoint metadata against that cache.
+4. `ConfiguredRateLimiter` atomically updates the per-rule, per-client counter and last-request timestamp in Redis.
+5. Allowed requests continue to the API handler. Rejected requests receive `429 Too Many Requests` and are either
+   dropped or written to a bounded Redis stream.
+
+The architecture settings live under `RateLimiting:Rules` in `RateLimiting.Server/appsettings.json`:
+
+| Setting | Purpose |
+| --- | --- |
+| `FilePath` | Rule document, resolved relative to the server content root |
+| `RefreshInterval` | How often each server worker reloads the file |
+| `RejectedRequestBehavior` | `Drop` or `Queue` |
+| `QueueKey` | Redis stream used when behavior is `Queue` |
+| `QueueMaxLength` | Approximate bounded stream length |
+| `QueuedBodyMaxBytes` | Maximum request body copied into a queue message |
+
+Protected endpoints opt in with `.RequireConfiguredRateLimit(domain, descriptorKey, descriptorValue)`. Two complete
+examples are included:
+
+- `POST /api/messages/marketing`
+- `POST /api/auth/login`
+
+Operational/demo endpoints:
 
 - `GET /api/rate-limiting-rules` to read the active policies.
 - `POST /api/rate-limiting-rules/evaluate` to match and consume a policy allowance for a client.
+- `GET /api/rate-limiting-rules/queue` to inspect the configured rejection behavior and Redis stream length.
 
 The frontend rule cards call these endpoints directly and show the response status, remaining allowance, and retry
 delay. Selecting **New client** starts with a new client identity and a fresh allowance.
+
+Redis outages are fail-open for rate checks so the limiter cannot take the API down. The failure is logged and the
+request proceeds. Queue failures are also logged; the client still receives the original 429 response.
 
 ## Implementing an algorithm
 
